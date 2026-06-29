@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <title>IMPOSTR</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <style>
+    :root {
+      --bg:#000; --bg3:#161616; --bg4:#1F1F1F;
+      --border:#252525; --border2:#333;
+      --text:#FFF; --text2:#999; --text3:#555;
+      --danger:#FF3B30; --success:#30D158; --warn:#FF9F0A;
+      --safe-top:env(safe-area-inset-top,0px);
+      --safe-bot:env(safe-area-inset-bottom,0px);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
+      font-family:-apple-system,'SF Pro Display','Helvetica Neue',sans-serif;
+      -webkit-font-smoothing:antialiased;overflow:hidden}
+    .screen{position:fixed;inset:0;display:none;flex-direction:column;
+      background:var(--bg);padding-top:var(--safe-top);padding-bottom:var(--safe-bot);
+      overflow-y:auto}
+    .screen.active{display:flex}
+
+    /* NAV */
+    .nav{display:flex;align-items:center;justify-content:space-between;
+      padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .nav-logo{font-size:22px;font-weight:900;letter-spacing:-1px}
+    .nav-sub{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+    .scroll-body{flex:1;overflow-y:auto;padding:0 20px 48px;-webkit-overflow-scrolling:touch}
+
+    /* BUTTONS */
+    .btn{width:100%;padding:17px;border-radius:14px;border:none;cursor:pointer;
+      font-size:16px;font-weight:700;letter-spacing:0.3px;font-family:inherit;
+      transition:opacity .15s,transform .1s;-webkit-tap-highlight-color:transparent}
+    .btn:active{opacity:.75;transform:scale(.98)}
+    .btn-primary{background:var(--text);color:var(--bg)}
+    .btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border2)}
+    .btn-danger{background:var(--danger);color:#fff}
+    .btn-warn{background:var(--warn);color:#000}
+    .btn:disabled{opacity:.3;pointer-events:none}
+
+    /* INPUTS */
+    .inp-label{display:block;font-size:11px;font-weight:700;letter-spacing:2px;
+      text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+    input[type=text],input[type=password]{
+      width:100%;background:var(--bg3);border:1px solid var(--border2);
+      border-radius:12px;color:var(--text);font-size:17px;padding:14px 16px;
+      outline:none;font-family:inherit;-webkit-appearance:none;appearance:none}
+    input:focus{border-color:#555}
+
+    /* SEGMENT */
+    .segment{display:flex;background:var(--bg3);border-radius:10px;padding:3px;border:1px solid var(--border)}
+    .seg-btn{flex:1;padding:9px 4px;border-radius:8px;background:transparent;border:none;
+      cursor:pointer;color:var(--text2);font-size:13px;font-weight:600;font-family:inherit;
+      transition:all .2s;-webkit-tap-highlight-color:transparent}
+    .seg-btn.active{background:var(--bg4);color:var(--text)}
+
+    /* SECTION */
+    .sec-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+      color:var(--text3);margin-bottom:12px}
+
+    /* PLAYER ROWS */
+    .plist{display:flex;flex-direction:column;gap:2px}
+    .prow{display:flex;align-items:center;gap:12px;padding:13px 16px;
+      background:var(--bg3);border-radius:10px}
+    .pav{width:38px;height:38px;border-radius:50%;background:var(--bg4);
+      border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;
+      font-size:15px;font-weight:700;flex-shrink:0}
+    .pname{flex:1;font-size:15px;font-weight:600}
+    .ptag{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
+    .ptag.host{color:var(--warn)} .ptag.you{color:var(--success)}
+    .ppts{font-size:18px;font-weight:800;min-width:36px;text-align:right}
+    .ppts.pos{color:var(--success)} .ppts.neg{color:var(--danger)} .ppts.zer{color:var(--text3)}
+
+    /* CONNECTION BAR */
+    .cbar{padding:8px 20px;font-size:12px;font-weight:600;text-align:center;
+      letter-spacing:.5px;flex-shrink:0;transition:all .3s}
+    .cbar.ok{background:#0a1f0a;color:var(--success)}
+    .cbar.err{background:#1f0a0a;color:var(--danger)}
+    .cbar.wait{background:#1a1500;color:var(--warn)}
+
+    /* ROLE CARD */
+    .role-card{border-radius:20px;overflow:hidden;border:1px solid var(--border2);margin:16px 0}
+    .role-face{padding:28px 24px;text-align:center;background:var(--bg3);
+      display:flex;flex-direction:column;align-items:center;gap:6px}
+    .role-icon{font-size:44px;margin-bottom:4px}
+    .role-badge{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--text3)}
+    .role-type{font-size:30px;font-weight:900;letter-spacing:-1px}
+    .role-type.imp{color:var(--danger)} .role-type.crew{color:var(--success)}
+    .role-divider{width:40px;height:1px;background:var(--border2);margin:8px 0}
+
+    /* WORD / HINT DISPLAY */
+    .info-box{background:var(--bg4);border-radius:14px;padding:18px 20px;width:100%;margin:4px 0;text-align:left}
+    .info-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+      color:var(--text3);margin-bottom:6px}
+    .info-val{font-size:22px;font-weight:800}
+    .info-val.word{color:var(--text)}
+    .info-val.hint{color:var(--warn)}
+    .info-val.cat{color:var(--text2);font-size:16px;font-weight:600}
+
+    /* VOTE ITEMS — uses <button> for reliable iOS tap */
+    .vlist{display:flex;flex-direction:column;gap:10px}
+    .vbtn{width:100%;display:flex;align-items:center;gap:14px;padding:18px 18px;
+      background:var(--bg3);border-radius:16px;cursor:pointer;
+      border:2px solid transparent;transition:background .15s,border-color .15s;
+      -webkit-tap-highlight-color:transparent;font-family:inherit;text-align:left;
+      -webkit-appearance:none;appearance:none}
+    .vbtn:active{opacity:.75}
+    .vbtn.sel{border-color:var(--danger);background:#200808}
+    .vcheck{width:28px;height:28px;border-radius:50%;border:2px solid var(--border2);
+      flex-shrink:0;display:flex;align-items:center;justify-content:center;
+      font-size:14px;transition:all .15s;color:transparent}
+    .vbtn.sel .vcheck{background:var(--danger);border-color:var(--danger);color:#fff}
+    .vname{font-size:18px;font-weight:700;flex:1;color:var(--text)}
+
+    /* VOTE HEADER */
+    .vote-header{text-align:center;padding:24px 0 8px}
+    .vote-header .big-emoji{font-size:40px;margin-bottom:8px}
+    .vote-header h2{font-size:22px;font-weight:900;margin-bottom:6px}
+    .vote-header p{font-size:15px;color:var(--text2);line-height:1.5}
+
+    /* RESULT ROWS */
+    .rrow{display:flex;align-items:center;gap:12px;padding:12px 16px;
+      background:var(--bg3);border-radius:10px;margin-bottom:2px}
+    .rbadge{font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;
+      letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+    .rbadge.imp{background:#2a0505;color:var(--danger)}
+    .rbadge.ok{background:#052a10;color:var(--success)}
+    .rbadge.bad{background:#1a0f00;color:var(--warn)}
+    .rbadge.none{background:var(--bg4);color:var(--text3)}
+
+    /* POINTS */
+    .pts-banner{background:var(--bg3);border-radius:16px;padding:20px;
+      text-align:center;margin:12px 0;border:1px solid var(--border2)}
+    .pts-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
+    .pts-val{font-size:52px;font-weight:900;letter-spacing:-2px;margin:4px 0}
+    .pts-val.pos{color:var(--success)} .pts-val.neg{color:var(--danger)} .pts-val.zer{color:var(--text3)}
+    .pts-desc{font-size:14px;color:var(--text2);margin-top:2px}
+
+    /* SKIP BAR */
+    .skip-bar{background:var(--bg3);border-radius:12px;padding:13px 16px;
+      border:1px solid var(--border);margin:10px 0;display:flex;align-items:center;gap:12px}
+    .skip-cnt{font-size:16px;font-weight:800;color:var(--warn);white-space:nowrap}
+    .skip-txt{flex:1;font-size:13px;color:var(--text2)}
+    .btn-skip{background:transparent;border:1px solid var(--border2);border-radius:8px;
+      padding:8px 14px;color:var(--text2);font-size:13px;font-weight:600;
+      cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit}
+    .btn-skip.voted{border-color:var(--warn);color:var(--warn)}
+
+    /* COUNTER */
+    .ctr-row{display:flex;align-items:center;justify-content:space-between;
+      padding:12px 16px;background:var(--bg3);border-radius:12px;margin-top:8px}
+    .ctr-lbl{font-size:15px;color:var(--text2)}
+    .ctr-wrap{display:flex;align-items:center;gap:16px}
+    .ctr-btn{width:34px;height:34px;border-radius:50%;background:var(--bg4);
+      border:1px solid var(--border2);color:var(--text);font-size:22px;font-weight:300;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      font-family:inherit;-webkit-tap-highlight-color:transparent}
+    .ctr-val{font-size:20px;font-weight:800;min-width:28px;text-align:center}
+
+    /* CAT GRID */
+    .cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+    .cat-btn{padding:11px 8px;font-size:13px;background:var(--bg3);border:1px solid var(--border);
+      border-radius:10px;color:var(--text2);cursor:pointer;font-weight:600;font-family:inherit;
+      -webkit-tap-highlight-color:transparent;transition:all .2s}
+    .cat-btn.active{background:var(--bg4);border-color:var(--border2);color:var(--text)}
+
+    /* MISC */
+    .divider{height:1px;background:var(--border);margin:20px 0}
+    .mt8{margin-top:8px} .mt16{margin-top:16px} .mt20{margin-top:20px} .mt24{margin-top:24px}
+    .text-muted{color:var(--text3);font-size:13px}
+    .text-center{text-align:center}
+    .waiting{text-align:center;color:var(--text3);font-size:14px;padding:32px 20px;line-height:1.7}
+    .big-emoji{font-size:56px;text-align:center;margin:20px 0}
+    .round-badge{background:var(--bg3);border:1px solid var(--border2);border-radius:20px;
+      padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:1px;
+      text-transform:uppercase;color:var(--text3)}
+    .flex-row{display:flex;gap:10px} .flex-row .btn{flex:1}
+    .step-hint{font-size:13px;color:var(--text3);text-align:center;margin-top:8px;line-height:1.6}
+
+    /* LOADING */
+    #loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+      justify-content:center;flex-direction:column;gap:16px;z-index:99}
+    #loading.hidden{display:none}
+    .loader{width:36px;height:36px;border-radius:50%;border:3px solid var(--border2);
+      border-top-color:var(--text);animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* TOAST */
+    #toast{position:fixed;bottom:calc(24px + var(--safe-bot));left:50%;transform:translateX(-50%);
+      background:var(--text);color:var(--bg);padding:12px 20px;border-radius:20px;
+      font-size:14px;font-weight:700;opacity:0;transition:opacity .3s;
+      pointer-events:none;z-index:100;white-space:nowrap;max-width:90vw}
+    #toast.show{opacity:1}
+
+    /* VOTE CONFIRM BANNER */
+    .vote-chosen{background:#1a0505;border:1px solid #3a0a0a;border-radius:12px;
+      padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .vote-chosen-name{font-size:17px;font-weight:800;color:var(--danger);flex:1}
+  </style>
+</head>
+<body>
+
+<div id="loading"><div class="loader"></div><div style="font-size:13px;color:var(--text3)">Loading…</div></div>
+<div id="toast"></div>
+
+<!-- ═══════ JOIN ═══════ -->
+<div id="screen-join" class="screen active">
+  <div class="nav">
+    <div><div class="nav-logo">IMPOSTR</div><div class="nav-sub">Multiplayer</div></div>
+  </div>
+  <div class="scroll-body">
+    <div style="margin-top:32px">
+      <label class="inp-label">Your Name</label>
+      <input type="text" id="join-name" placeholder="Enter your name" maxlength="20" autocomplete="off" />
+    </div>
+    <div style="margin-top:20px">
+      <label class="inp-label">Room Password</label>
+      <input type="text" id="join-pass" placeholder="Everyone uses the same password" maxlength="30" autocomplete="off" />
+      <div class="text-muted mt8">Share this password with your friends via WhatsApp</div>
+    </div>
+    <div class="mt24">
+      <button class="btn btn-primary" onclick="doJoin()">Join / Create Room →</button>
+    </div>
+    <div class="divider"></div>
+    <div class="text-muted text-center" style="line-height:1.8">
+      First person to join = <strong style="color:var(--text2)">Host</strong><br>
+      Host picks settings & starts the game<br>
+      Everyone joins from their own phone
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ LOBBY ═══════ -->
+<div id="screen-lobby" class="screen">
+  <div id="conn-bar" class="cbar wait">● Connecting…</div>
+  <div class="nav">
+    <div><div class="nav-logo">IMPOSTR</div><div class="nav-sub" id="lobby-code">Room ––</div></div>
+    <button class="btn btn-secondary" style="width:auto;padding:8px 16px;font-size:13px" onclick="leaveGame()">Leave</button>
+  </div>
+  <div class="scroll-body">
+    <div style="margin-top:20px">
+      <div class="sec-title" id="lobby-status">Waiting for players…</div>
+      <div class="plist" id="lobby-players"></div>
+    </div>
+
+    <div id="host-settings" style="display:none">
+      <div class="divider"></div>
+      <div class="sec-title">Category</div>
+      <div class="cat-grid">
+        <button class="cat-btn active" data-cat="all" onclick="setCat(this)">All</button>
+        <button class="cat-btn" data-cat="bangladeshi" onclick="setCat(this)">🇧🇩 Bangladeshi</button>
+        <button class="cat-btn" data-cat="places" onclick="setCat(this)">Places</button>
+        <button class="cat-btn" data-cat="food" onclick="setCat(this)">Food & Drinks</button>
+        <button class="cat-btn" data-cat="objects" onclick="setCat(this)">Daily Objects</button>
+        <button class="cat-btn" data-cat="nature" onclick="setCat(this)">Nature & Animals</button>
+        <button class="cat-btn" data-cat="sports" onclick="setCat(this)">Sports</button>
+        <button class="cat-btn" data-cat="professions" onclick="setCat(this)">Professions</button>
+        <button class="cat-btn" data-cat="tech" onclick="setCat(this)">Technology</button>
+        <button class="cat-btn" data-cat="entertainment" onclick="setCat(this)">Entertainment</button>
+        <button class="cat-btn" data-cat="history" onclick="setCat(this)">History & Culture</button>
+      </div>
+
+      <div class="divider"></div>
+      <div class="sec-title">Impostors</div>
+      <div class="segment">
+        <button class="seg-btn active" id="imp-fixed-btn" onclick="setImpMode('fixed')">Fixed Count</button>
+        <button class="seg-btn" id="imp-rand-btn" onclick="setImpMode('random')">Random Range</button>
+      </div>
+      <div id="imp-fixed-row" class="ctr-row">
+        <span class="ctr-lbl">Number of Impostors</span>
+        <div class="ctr-wrap">
+          <button class="ctr-btn" onclick="adj('impCount',-1)">−</button>
+          <span class="ctr-val" id="imp-count-val">1</span>
+          <button class="ctr-btn" onclick="adj('impCount',1)">+</button>
+        </div>
+      </div>
+      <div id="imp-rand-rows" style="display:none">
+        <div class="ctr-row"><span class="ctr-lbl">Minimum</span><div class="ctr-wrap"><button class="ctr-btn" onclick="adj('impMin',-1)">−</button><span class="ctr-val" id="imp-min-val">1</span><button class="ctr-btn" onclick="adj('impMin',1)">+</button></div></div>
+        <div class="ctr-row" style="margin-top:2px"><span class="ctr-lbl">Maximum</span><div class="ctr-wrap"><button class="ctr-btn" onclick="adj('impMax',-1)">−</button><span class="ctr-val" id="imp-max-val">3</span><button class="ctr-btn" onclick="adj('impMax',1)">+</button></div></div>
+      </div>
+    </div>
+
+    <div class="mt24">
+      <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>Start Game</button>
+      <div id="start-hint" class="text-muted text-center mt8"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ REVEAL ═══════ -->
+<div id="screen-reveal" class="screen">
+  <div class="nav">
+    <div><div class="nav-logo">IMPOSTR</div><div id="reveal-round" class="round-badge">Round 1</div></div>
+  </div>
+  <div class="scroll-body">
+    <div class="step-hint mt20">Pass your phone to each player privately to tap their card.</div>
+
+    <!-- Hidden state (before tap) -->
+    <div id="card-hidden" style="margin-top:16px">
+      <div class="role-card" onclick="showCard()" style="cursor:pointer">
+        <div class="role-face" style="background:var(--bg4);min-height:200px;justify-content:center">
+          <div class="role-icon">🃏</div>
+          <div style="font-size:20px;font-weight:800;color:var(--text2)">Tap to see your role</div>
+          <div class="step-hint">Make sure nobody else is watching</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shown state (after tap) -->
+    <div id="card-shown" style="display:none;margin-top:16px">
+      <div class="role-card" id="role-card-inner">
+        <div class="role-face" id="role-face">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <div class="mt16">
+        <button class="btn btn-primary" id="ready-btn" onclick="markReady()">I'm Ready ✓</button>
+      </div>
+      <div class="step-hint">Tap "I'm Ready" then pass your phone to the next player.</div>
+    </div>
+
+    <div id="reveal-waiting" style="display:none">
+      <div class="pts-banner" style="margin-top:16px">
+        <div class="pts-label">Waiting for others</div>
+        <div id="reveal-progress" style="font-size:28px;font-weight:900;margin:8px 0">0 / 0</div>
+        <div class="pts-desc">players have seen their role</div>
+      </div>
+    </div>
+
+    <div id="host-force-btn" style="display:none;margin-top:12px">
+      <button class="btn btn-secondary" onclick="forceDiscussion()">Everyone's ready — Start Discussion (Host)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ DISCUSSION ═══════ -->
+<div id="screen-discussion" class="screen">
+  <div class="nav">
+    <div><div class="nav-logo">IMPOSTR</div><div id="disc-round" class="round-badge">Round 1</div></div>
+  </div>
+  <div class="scroll-body">
+    <!-- CREWMATE view -->
+    <div id="disc-crew" style="display:none">
+      <div class="role-card" style="margin:16px 0;cursor:default">
+        <div class="role-face">
+          <div class="role-icon">👤</div>
+          <div class="role-badge">You Are</div>
+          <div class="role-type crew">CREWMATE</div>
+          <div class="role-divider"></div>
+          <div class="info-box" style="margin:0">
+            <div class="info-label">Your Word</div>
+            <div class="info-val word" id="disc-word-val"></div>
+          </div>
+          <div class="info-box" style="margin:0">
+            <div class="info-label">Category</div>
+            <div class="info-val cat" id="disc-cat-crew"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPOSTOR view -->
+    <div id="disc-imp" style="display:none">
+      <div class="role-card" style="margin:16px 0;border-color:#3a0a0a;cursor:default">
+        <div class="role-face" style="background:#0d0505">
+          <div class="role-icon">😈</div>
+          <div class="role-badge">You Are</div>
+          <div class="role-type imp">IMPOSTOR</div>
+          <div class="role-divider"></div>
+          <div class="info-box" style="margin:0;background:#1a0505">
+            <div class="info-label">Your Hint</div>
+            <div class="info-val hint" id="disc-hint-val"></div>
+          </div>
+          <div class="info-box" style="margin:0;background:#1a0505">
+            <div class="info-label">Category</div>
+            <div class="info-val cat" id="disc-cat-imp"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skip word -->
+    <div class="skip-bar">
+      <div class="skip-cnt" id="skip-cnt">0/0</div>
+      <div class="skip-txt">Vote to skip this word</div>
+      <button class="btn-skip" id="skip-btn" onclick="voteSkip()">Skip Word</button>
+    </div>
+
+    <div style="margin-top:20px">
+      <div class="sec-title">All Players</div>
+      <div class="plist" id="disc-players"></div>
+    </div>
+
+    <div id="disc-host-ctrl" style="display:none;margin-top:20px">
+      <button class="btn btn-warn" onclick="startVoting()">Start Voting →</button>
+      <div class="step-hint">Tap when the group is ready to vote</div>
+    </div>
+    <div id="disc-wait" class="waiting">Discuss out loud who the impostor might be.<br>The host will start the vote.</div>
+  </div>
+</div>
+
+<!-- ═══════ VOTING ═══════ -->
+<div id="screen-voting" class="screen">
+  <div class="nav">
+    <div><div class="nav-logo">IMPOSTR</div><div id="vote-round" class="round-badge">Round 1</div></div>
+  </div>
+  <div class="scroll-body">
+
+    <!-- Crewmate: vote UI -->
+    <div id="vote-crew" style="display:none">
+      <div class="vote-header">
+        <div class="big-emoji">🕵️</div>
+        <h2>Who is the Impostor?</h2>
+        <p>Tap a name below to select your suspect,<br>then confirm your vote.</p>
+      </div>
+      <div class="vlist" id="vote-list"></div>
+      <div id="vote-select-hint" style="text-align:center;color:var(--text3);font-size:14px;margin-top:16px;padding:0 8px">
+        👆 Tap a player above to select them
+      </div>
+    </div>
+
+    <!-- Confirm banner — appears after selection -->
+    <div id="vote-chosen-banner" style="display:none;margin-top:20px">
+      <div style="background:#200808;border:1px solid #4a1010;border-radius:14px;padding:16px 18px;margin-bottom:12px;text-align:center">
+        <div style="font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:6px">YOUR SUSPECT</div>
+        <div id="vote-chosen-name" style="font-size:24px;font-weight:900;color:var(--danger)"></div>
+      </div>
+      <button class="btn btn-danger" onclick="submitVote()">✓ Confirm Vote</button>
+      <button class="btn btn-secondary mt8" onclick="clearVoteSelection()">← Change Selection</button>
+    </div>
+
+    <!-- Crewmate: after submitting -->
+    <div id="vote-submitted" style="display:none">
+      <div style="text-align:center;padding:48px 20px 32px">
+        <div class="big-emoji">✅</div>
+        <div style="font-size:22px;font-weight:800;margin-bottom:8px">Vote Submitted!</div>
+        <div style="font-size:15px;color:var(--text2)">You voted for</div>
+        <div id="vote-submitted-name" style="font-size:24px;font-weight:900;color:var(--danger);margin-top:6px"></div>
+        <div id="vote-prog" style="margin-top:20px;font-size:14px;color:var(--text3);font-weight:700"></div>
+      </div>
+    </div>
+
+    <!-- Impostor: hide & wait -->
+    <div id="vote-imp" style="display:none">
+      <div style="text-align:center;padding:48px 20px 32px">
+        <div class="big-emoji">😈</div>
+        <div style="font-size:24px;font-weight:900;color:var(--danger);margin-bottom:8px">You're the Impostor</div>
+        <div style="font-size:16px;color:var(--text2);margin-bottom:24px">Lie low… the crew is voting.</div>
+        <div style="background:#200808;border:1px solid #4a1010;border-radius:14px;padding:16px 18px">
+          <div style="font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Your score depends on</div>
+          <div style="font-size:15px;color:var(--text2)">How many players <strong style="color:var(--text)">didn't</strong> vote for you</div>
+        </div>
+        <div id="vote-prog2" style="margin-top:20px;font-size:14px;color:var(--text3);font-weight:700"></div>
+      </div>
+    </div>
+
+    <!-- Host force button -->
+    <div id="vote-host-btn" style="display:none;padding:12px 0 24px">
+      <button class="btn btn-secondary" onclick="forceResults()">Show Results (Host)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ RESULTS ═══════ -->
+<div id="screen-results" class="screen">
+  <div class="nav">
+    <div><div class="nav-logo">IMPOSTR</div><div id="res-round" class="round-badge">Round 1</div></div>
+  </div>
+  <div class="scroll-body">
+    <div class="pts-banner">
+      <div class="pts-label">Your Points This Round</div>
+      <div class="pts-val zer" id="my-pts">0</div>
+      <div class="pts-desc" id="my-pts-desc"></div>
+    </div>
+
+    <div style="margin-top:20px">
+      <div class="sec-title">The Word Was</div>
+      <div style="background:var(--bg3);border-radius:12px;padding:16px 18px;margin-bottom:20px">
+        <div style="font-size:24px;font-weight:900" id="res-word"></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="sec-title">Impostors Revealed</div>
+      <div class="plist" id="res-imps"></div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="sec-title">Votes Cast</div>
+      <div class="plist" id="res-votes"></div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div class="sec-title">Leaderboard</div>
+      <div class="plist" id="res-board"></div>
+    </div>
+
+    <div id="res-host-btns" style="display:none">
+      <button class="btn btn-primary" onclick="nextRound()">Next Round →</button>
+      <button class="btn btn-secondary mt8" onclick="resetPoints()">Reset Scores & End</button>
+    </div>
+    <div id="res-wait" class="waiting">Waiting for host to start next round…</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// WORD BANK (555+ words)
+// ═══════════════════════════════════════════
+const WDB = {
+  bangladeshi:[
+    ['Hilsa Fish','Scales & river'],['Rickshaw','Street transport'],['Padma Bridge','River crossing'],
+    ["Cox's Bazar",'Long sandy beach'],['Bangladesh Cricket Team','Tigers of cricket'],
+    ['Pohela Boishakh','New year parade'],['Mustard Oil','Yellow cooking oil'],
+    ['Dhaka University','Curzon Hall campus'],['Haleem','Slow-cooked stew'],
+    ['Shutki Maach','Dried pungent fish'],['Panta Bhat','Fermented rice water'],
+    ['Lungi','Wrapped waist cloth'],['Jamdani Saree','Woven silk art'],
+    ['Sylhet Tea Garden','Rolling green hills'],['Sundarban','Mangrove & tigers'],
+    ['Rajshahi Lychee','Sweet juicy fruit'],['Shorshe Ilish','Mustard fish curry'],
+    ['Beguni','Battered eggplant'],['Fuchka','Crispy & tangy'],['Chotpoti','Spicy street bowl'],
+    ['Mishti Doi','Sweet curd pot'],['Narikel Naru','Coconut sweet ball'],
+    ['Bhapa Pitha','Steamed rice cake'],['Muri Moa','Puffed rice treat'],
+    ['Bhorta','Mashed & spiced'],['Bakorkhani','Flaky crisp bread'],
+    ['Morola Mach','Tiny river fish'],['Eid Jamaat','Prayer gathering'],
+    ['Iftar Party','Breaking fast meal'],['Nabanna Festival','Harvest celebration'],
+    ['Durga Puja Pandal','Idol & festivity'],['Bangla New Year','Colourful parade'],
+    ['CNG Auto-rickshaw','Three-wheel ride'],['Launch River Ferry','River boat ride'],
+    ['Jamuna Bridge','Long river bridge'],['Bashundhara City Mall','Big city mall'],
+    ['Sadarghat Terminal','Busy river port'],['Buriganga River','Old Dhaka river'],
+    ['Lalbagh Fort','Mughal fortress'],['Ahsan Manzil','Pink palace'],
+    ['Liberation War Memorial','1971 memory'],['Shaheed Minar','Language martyr'],
+    ['Star Mosque','Tiled & ornate'],['Sixty Dome Mosque','Ancient brick mosque'],
+    ['Srimangal Tea Estate','Endless tea rows'],['Hatirjheel','Urban lakeside'],
+    ['Rangamati Lake','Hill lake boat'],['Kaptai Dam','Built & flooded'],
+    ['Saint Martin Island','Tiny coral island'],['Nijhum Dwip','Deer & tides'],
+    ['Paddy Field','Golden harvest'],['Royal Bengal Tiger','Striped big cat'],
+    ['Gangetic Dolphin','River mammal'],['Nouka Baich','Traditional boat race'],
+    ['Nakshi Kantha','Stitched quilt'],['Muslin Weaving','Ancient fine cloth'],
+    ['Jilapi','Spiral sweet'],['Rasgolla','Soft white sweet'],
+    ['Kacha Aam','Unripe & sour'],['Jaggery Gur','Brown cane sweet'],
+    ['Date Palm Juice','Winter tree juice'],['Terracotta Horse','Clay folk art'],
+    ['Bogura Yoghurt','Thick & sweet'],['Tangail Saree','Woven silk cloth'],
+    ['Rajshahi Silk','Premium & smooth'],['Old Dhaka Street Food','Narrow lane snack'],
+    ['Bhawal Rajbari','Palace & garden'],['Mainamati','Buddhist ruins'],
+    ['Biryani','Fragrant layered rice'],['Dhaka Traffic Jam','Honking & slow'],
+    ['Aarong','Crafts & fashion'],['Eid ul-Fitr','Festive prayers'],
+    ['Rickshaw Art','Colourful painted panels'],['Shonar Bangla','Golden homeland'],
+  ],
+  places:[
+    ['Coffee Shop','Beans & warmth'],['Airport','Gates & wings'],['Hospital','White & healing'],
+    ['Library','Shelves & silence'],['Gym','Weights & sweat'],['Beach','Sand & waves'],
+    ['Movie Theater','Screen & popcorn'],['School','Desks & chalk'],
+    ['Supermarket','Aisles & trolleys'],['Restaurant','Tables & menu'],
+    ['Park','Bench & trees'],['Hotel','Lobby & rooms'],['Bank','Vault & queues'],
+    ['Spa','Candles & calm'],['Museum','Display & history'],['Zoo','Cages & roar'],
+    ['Stadium','Crowd & cheers'],['Train Station','Platform & whistle'],
+    ['Office','Desks & deadlines'],['Kitchen','Pots & flames'],
+    ['Rooftop Bar','Night & skyline'],['Submarine','Depth & periscope'],
+    ['Space Station','Orbit & float'],['Prison','Bars & guard'],
+    ['Pirate Ship','Plank & flag'],['Casino','Chips & chance'],
+    ['Circus','Ring & clowns'],['Haunted House','Creak & scare'],
+    ['Ski Resort','Slopes & gondola'],['Cruise Ship','Deck & ocean'],
+    ['Farm','Rooster & soil'],['Temple','Incense & prayer'],
+    ['Playground','Slides & swings'],['Lighthouse','Beam & cliff'],
+    ['Antique Shop','Dusty & old'],['Bowling Alley','Pins & lane'],
+    ['Ice Rink','Cold & slippery'],['Amusement Park','Rides & screams'],
+    ['Water Park','Slides & splash'],['Golf Course','Clubs & holes'],
+    ['Race Track','Speed & laps'],['Observatory','Stars & dome'],
+    ['Aquarium','Fish & glass'],['Art Studio','Canvas & paint'],
+    ['Recording Studio','Sound & booth'],['Bakery','Bread & oven'],
+    ['Barbershop','Cuts & razors'],['Tattoo Parlor','Ink & needles'],
+    ['Laundromat','Spin & soap'],['Flea Market','Cheap & old'],
+    ['Night Club','Loud & dark'],['Karaoke Bar','Sing & cringe'],
+    ['Escape Room','Locked & puzzled'],['Trampoline Park','Jump & bounce'],
+    ['Go-Kart Track','Tiny & fast'],['Planetarium','Stars on ceiling'],
+    ['Pawn Shop','Hock & bargain'],['Archery Range','Aim & release'],
+  ],
+  food:[
+    ['Pizza','Round & cheesy'],['Sushi','Fish & rice'],['Tacos','Shell & salsa'],
+    ['Ramen','Broth & noodles'],['Burger','Bun & patty'],['Ice Cream','Cold & sweet'],
+    ['Pasta','Sauce & twist'],['Cheesecake','Creamy & dense'],
+    ['Fried Chicken','Crispy & golden'],['Waffles','Grid & syrup'],
+    ['Hot Dog','Sausage & bun'],['Dumplings','Folded & steamed'],
+    ['Pho','Clear broth noodle'],['Pad Thai','Noodle & peanut'],
+    ['Shawarma','Wrap & spit'],['Churros','Fried & cinnamon'],
+    ['Baklava','Honey & flaky'],['Paella','Saffron rice pan'],
+    ['Croissant','Flaky & buttery'],['Tiramisu','Coffee & cream'],
+    ['Hummus','Chickpea & tahini'],['Kebab','Skewer & smoke'],
+    ['Lasagna','Layers & bake'],['Dim Sum','Basket & steam'],
+    ['Jackfruit','Spiky & sweet'],['Mango Lassi','Thick & tropical'],
+    ['Masala Tea','Spiced & milky'],['Samosa','Triangle & crispy'],
+    ['Boba Tea','Chewy & cold'],['Matcha Latte','Green & bitter'],
+    ['Smoothie Bowl','Colourful & thick'],['Avocado Toast','Trendy breakfast'],
+    ['Pancakes','Flat & stacked'],['French Toast','Eggy bread'],
+    ['Shakshuka','Eggs in sauce'],['Bibimbap','Mixed rice bowl'],
+    ['Kimchi','Spicy & fermented'],['Gyoza','Pan-fried pockets'],
+    ['Spring Roll','Wrapped & crispy'],['Banh Mi','Vietnamese sandwich'],
+    ['Ceviche','Raw & citrus'],['Jerk Chicken','Smoky & spiced'],
+    ['Couscous','Fine grain meal'],['Injera','Spongy flatbread'],
+    ['Borscht','Red beet soup'],['Pierogi','Stuffed dough'],
+    ['Falafel','Fried chickpea ball'],['Risotto','Creamy Italian rice'],
+    ['Crème Brûlée','Burnt sugar top'],['Macaron','Colourful sweet'],
+    ['Gelato','Dense Italian ice'],['Mochi','Chewy rice cake'],
+    ['Naan','Tandoor bread'],['Dosa','Crispy rice crepe'],
+    ['Butter Chicken','Orange creamy curry'],['Dal Makhani','Black lentil curry'],
+    ['Chaat','Tangy street mix'],['Tteokbokki','Spicy rice cakes'],
+    ['Pani Puri','Hollow & spicy'],['Poutine','Fries & gravy'],
+    ['Baozi','Steamed fluffy bun'],['Empanada','Baked filled pastry'],
+  ],
+  objects:[
+    ['Umbrella','Rain & shield'],['Headphones','Ears & sound'],['Passport','Stamps & travel'],
+    ['Sunglasses','Cool & UV'],['Wallet','Cards & cash'],['Bicycle','Pedals & chain'],
+    ['Laptop','Keyboard & screen'],['Mirror','Reflect & vanity'],['Candle','Wax & glow'],
+    ['Toothbrush','Bristles & mint'],['Pillow','Soft & sleep'],['Alarm Clock','Ring & morning'],
+    ['Elevator','Buttons & floors'],['Escalator','Moving stairs'],
+    ['ATM Machine','Cash & PIN'],['Traffic Light','Red green yellow'],
+    ['Post Box','Letters & slot'],['Water Bottle','Hydrate & carry'],
+    ['Backpack','Straps & load'],['Pen','Ink & write'],
+    ['Keyboard','Type & click'],['Stapler','Press & bind'],
+    ['Whiteboard','Marker & erase'],['Projector','Beam & screen'],
+    ['Magnifying Glass','Big & see'],['Compass','Needle & north'],
+    ['Thermometer','Temperature & glass'],['Scale','Weight & balance'],
+    ['Fire Extinguisher','Red & pressure'],['First Aid Kit','White cross box'],
+    ['Tool Box','Hardware & carry'],['Measuring Tape','Flexible numbered'],
+    ['Sewing Machine','Thread & needle'],['Ironing Board','Flat & padded'],
+    ['Vacuum Cleaner','Suction & clean'],['Blender','Spin & smooth'],
+    ['Microwave','Beep & heat'],['Washing Machine','Spin & soap'],
+    ['Air Conditioner','Cool & hum'],['Ceiling Fan','Spin above'],
+    ['Power Strip','Multiple sockets'],['Lock and Key','Open & secure'],
+    ['Safety Pin','Tiny & sharp'],['Swiss Army Knife','Many tiny tools'],
+    ['Duct Tape','Silver & sticky'],['Padlock','Metal & click'],
+    ['Hourglass','Sand & time'],['Kaleidoscope','Colours & shapes'],
+    ['Weather Vane','Wind & spin'],['Sundial','Shadow tells time'],
+    ['Abacus','Beads & counting'],['Ruler','Straight & measured'],
+  ],
+  nature:[
+    ['Lion','Golden mane king'],['Tiger','Striped fierce hunter'],['Elephant','Large & trunk'],
+    ['Whale','Ocean giant mammal'],['Dolphin','Jumps & clicks'],['Eagle','Sharp & soaring'],
+    ['Penguin','Tuxedo & ice'],['Crocodile','Teeth & swamp'],['Giraffe','Tall & spotted'],
+    ['Zebra','Striped wild horse'],['Gorilla','Chest-beating strength'],['Cheetah','Fastest on land'],
+    ['Flamingo','Pink one-legged'],['Jellyfish','Translucent & sting'],
+    ['Octopus','Eight arms & ink'],['Shark','Fin & teeth'],
+    ['Polar Bear','White & arctic'],['Kangaroo','Pouch & hop'],
+    ['Panda','Black white bamboo'],['Chameleon','Colour-changing lizard'],
+    ['Peacock','Fan & feathers'],['Parrot','Talks & perches'],
+    ['Firefly','Glows at night'],['Butterfly','Wings & metamorphosis'],
+    ['Snail','Slow & shell'],['Tortoise','Ancient & shell'],
+    ['Hummingbird','Tiny & hovering'],['Platypus','Duck bill mammal'],
+    ['Volcano','Hot & erupting'],['Waterfall','Falling water crash'],
+    ['Desert','Dry & sandy'],['Glacier','Slow ice river'],
+    ['Rainforest','Dense & tropical'],['Coral Reef','Colourful underwater'],
+    ['Hot Spring','Steaming earth water'],['Canyon','Deep rock valley'],
+    ['Cave','Dark stone hollow'],['Mangrove','Roots in water'],
+    ['Bamboo Forest','Tall & hollow'],['Savannah','Flat & grassland'],
+    ['Tundra','Frozen & barren'],['Aurora Borealis','Night sky lights'],
+    ['Lightning Storm','Flash & thunder'],['Tornado','Spinning destructive'],
+    ['Blizzard','White & howling'],['Rainbow','Colour arc rain'],
+    ['Meteor Shower','Shooting stars'],['Earthquake','Ground shaking'],
+    ['Tsunami','Massive ocean wave'],['Monsoon','Heavy seasonal rain'],
+    ['Fog','Low thick cloud'],['Hailstorm','Ice from sky'],
+    ['Quicksand','Sinking & dangerous'],['Fossil','Ancient & stony'],
+    ['Salt Flat','White & reflective'],['Geyser','Steam & burst'],
+    ['Sand Dune','Wind-shaped hill'],['Mudflat','Flat & sticky'],
+  ],
+  sports:[
+    ['Cricket','Bat & wickets'],['Football','Kick & goal'],['Tennis','Racket & net'],
+    ['Basketball','Hoop & dribble'],['Swimming','Lanes & strokes'],['Boxing','Gloves & ring'],
+    ['Gymnastics','Flip & balance'],['Archery','Bow & target'],['Fencing','Sword & mask'],
+    ['Rock Climbing','Grip & ascend'],['Skateboarding','Board & tricks'],
+    ['Surfing','Wave & balance'],['Skiing','Snow & poles'],['Chess','Strategy & pawns'],
+    ['Badminton','Shuttlecock & smash'],['Table Tennis','Ping pong'],
+    ['Volleyball','Spike & serve'],['Rugby','Tackle & oval'],
+    ['Wrestling','Grapple & pin'],['Yoga','Pose & breathe'],
+    ['Cycling','Pedal & speed'],['Marathon','Long & running'],
+    ['Scuba Diving','Tank & depth'],['Skydiving','Freefall & chute'],
+    ['Bungee Jumping','Leap & cord'],['Horse Racing','Gallop & jockey'],
+    ['Bowling','Roll & strike'],['Billiards','Cue & pocket'],
+    ['Kabaddi','Tag & breathhold'],['Carrom','Flick & pocket'],
+    ['Kite Flying','Wind & string'],['Tug of War','Pull & resist'],
+    ['Breakdancing','Spin & freeze'],['Parkour','Jump & vault'],
+    ['Paintball','Splat & duck'],['Axe Throwing','Spin & thud'],
+    ['Paddleboarding','Balance & paddle'],['Kayaking','Paddle & wade'],
+    ['Pole Vaulting','Run & soar'],['High Jump','Leap the bar'],
+    ['Triathlon','Swim bike run'],['Dodgeball','Throw & dodge'],
+    ['Pickleball','Paddle & court'],['Curling','Sweep & stone'],
+    ['Polo','Horse & mallet'],['Squash','Walls & racket'],
+    ['Darts','Aim & flight'],['Arm Wrestling','Grip & push'],
+  ],
+  professions:[
+    ['Doctor','Stethoscope & cure'],['Teacher','Chalk & lesson'],['Pilot','Cockpit & altitude'],
+    ['Chef','Apron & flame'],['Lawyer','Brief & courtroom'],['Engineer','Design & build'],
+    ['Firefighter','Hose & flames'],['Police Officer','Badge & patrol'],
+    ['Astronaut','Helmet & orbit'],['Archaeologist','Dig & discover'],
+    ['Architect','Blueprint & design'],['Surgeon','Scalpel & sterile'],
+    ['Journalist','Pen & deadline'],['Photographer','Click & frame'],
+    ['Scientist','Lab coat & test'],['Farmer','Plow & harvest'],
+    ['Fisherman','Net & catch'],['Carpenter','Wood & chisel'],
+    ['Electrician','Wire & current'],['Plumber','Pipe & wrench'],
+    ['Librarian','Shelves & quiet'],['Pharmacist','Pills & prescription'],
+    ['Veterinarian','Animals & heal'],['Dentist','Drill & teeth'],
+    ['Nurse','Care & needle'],['Sailor','Ship & sea'],
+    ['Soldier','Uniform & duty'],['Judge','Gavel & verdict'],
+    ['Magician','Wand & illusion'],['Comedian','Mic & laugh'],
+    ['Singer','Vocal & stage'],['Dancer','Rhythm & movement'],
+    ['Painter','Brush & canvas'],['Sculptor','Chisel & shape'],
+    ['Poet','Words & rhyme'],['Psychologist','Mind & listen'],
+    ['Economist','Numbers & markets'],['Geologist','Rocks & layers'],
+    ['Marine Biologist','Ocean & creatures'],['Ethical Hacker','Breach & protect'],
+    ['Data Scientist','Patterns & models'],['UX Designer','User & interface'],
+    ['Game Developer','Code & play'],['Film Director','Camera & action'],
+    ['Voice Actor','Booth & character'],['Radio DJ','Mic & playlist'],
+    ['News Anchor','Desk & broadcast'],['Sommelier','Wine & taste'],
+    ['Stunt Double','Risk & act'],['Palaeontologist','Fossils & bones'],
+  ],
+  tech:[
+    ['Smartphone','Pocket computer'],['Drone','Flies & cameras'],['Satellite','Orbit & signal'],
+    ['Telescope','Stars & magnify'],['Microscope','Tiny & visible'],['Calculator','Numbers & buttons'],
+    ['Camera','Lens & capture'],['Smart Watch','Wrist & notifications'],
+    ['VR Headset','Virtual & immersive'],['GPS','Navigate & locate'],
+    ['Wi-Fi Router','Signal & connect'],['Server Farm','Racks & data'],
+    ['Artificial Intelligence','Learns & predicts'],['Cryptocurrency','Digital & decentralised'],
+    ['Self-Driving Car','Wheels & sensors'],['3D Printer','Layer by layer'],
+    ['Solar Panel','Sun & energy'],['Electric Car','Silent & charging'],
+    ['Space Rocket','Thrust & orbit'],['Quantum Computer','Qubits & superfast'],
+    ['Augmented Reality','Overlaid digital'],['Smart Home','Automated living'],
+    ['Robot Vacuum','Rolls & sucks'],['Smart Speaker','Listen & respond'],
+    ['Digital Camera','Photos & memory'],['Action Camera','Small & rugged'],
+    ['Dashcam','Drive & record'],['Smart Thermostat','Temperature & schedule'],
+    ['Fitness Tracker','Steps & pulse'],['E-Reader','Books & ink screen'],
+    ['Tablet','Big & touchscreen'],['Gaming Console','Controller & game'],
+    ['Streaming Device','Plug & stream'],['Smart TV','Connected & big'],
+    ['Podcast Microphone','Record & publish'],['Green Screen','Replace background'],
+    ['Motion Capture Suit','Move & animate'],['Hologram','3D projected image'],
+    ['Neural Interface','Brain & computer'],['Exoskeleton','Wearable robot suit'],
+    ['Nano Robot','Tiny machine'],['Gene Editor','DNA & modify'],
+    ['Biometric Scanner','Face or finger'],['Deepfake','AI face swap'],
+    ['Black Box Recorder','Flight memory'],['Cloud Storage','Internet & save'],
+    ['Firewall','Block & protect'],
+  ],
+  entertainment:[
+    ['Theme Park','Rides & thrills'],['Comic Book','Panels & heroes'],
+    ['Video Game','Controller & world'],['Music Concert','Stage & crowd'],
+    ['Film Festival','Screens & awards'],['TV Show','Series & episodes'],
+    ['Podcast','Voice & subscribe'],['Superhero','Cape & powers'],
+    ['Cartoon','Drawn & animated'],['Documentary','Real & filmed'],
+    ['Reality Show','Drama & cameras'],['Award Show','Red carpet trophies'],
+    ['Book Club','Read & discuss'],['Art Gallery','White walls & art'],
+    ['Theatre Play','Stage & curtain'],['Stand-up Comedy','Mic & punchline'],
+    ['Magic Show','Trick & reveal'],['Board Game','Pieces & rules'],
+    ['Escape Room','Locked & clues'],['Karaoke','Lyrics on screen'],
+    ['Dance Battle','Moves & music'],['Rap Battle','Words & rhyme'],
+    ['Flash Mob','Surprise performance'],['Street Art','Spray & wall'],
+    ['Food Truck Festival','Park & eat'],['Cosplay Event','Costume & character'],
+    ['Anime Convention','Cosplay & manga'],['Gaming Tournament','LAN & compete'],
+    ['Hackathon','Code & build fast'],['TEDx Talk','Idea & stage'],
+    ['Open Mic Night','Try & applaud'],['Improv Show','No script laugh'],
+    ['Puppet Show','Strings & character'],['Talent Show','Perform & judge'],
+    ['Spelling Bee','Letters & sweat'],['Trivia Night','Questions & team'],
+    ['Murder Mystery Dinner','Suspect & solve'],['Scavenger Hunt','Find & clue'],
+    ['Bake-off Competition','Bake & judge'],['Music Video','Song & visual'],
+    ['Fashion Show','Runway & clothes'],['Slam Poetry','Spoken & rhythmic'],
+    ['Drag Show','Glamour & stage'],['Comedy Roast','Burn & laugh'],
+  ],
+  history:[
+    ['Ancient Egypt','Pyramids & pharaohs'],['Roman Empire','Senate & conquest'],
+    ['Silk Road','Trade & journey'],['Great Wall','Long & ancient'],
+    ['Pyramids','Stone & desert'],['Colosseum','Gladiators & Rome'],
+    ['Stonehenge','Circle & mystery'],['Taj Mahal','White marble love'],
+    ['Eiffel Tower','Paris & iron'],['Olympic Games','Athletes & rings'],
+    ['Renaissance','Art & rebirth'],['Industrial Revolution','Steam & factories'],
+    ['Space Race','Moon & rockets'],['Democracy','Vote & govern'],
+    ['Monarchy','Crown & throne'],['Folk Dance','Traditional & festive'],
+    ['Traditional Wedding','Ceremony & vows'],['Harvest Festival','Crops & celebrate'],
+    ['Street Market','Stalls & bargain'],['Christmas Market','Winter & lights'],
+    ['Holi Festival','Colours & spring'],['Diwali','Lights & fireworks'],
+    ['Chinese New Year','Dragon & red'],['Carnival','Parade & costumes'],
+    ['Mardi Gras','Beads & party'],['Day of the Dead','Skulls & flowers'],
+    ['Cherry Blossom Festival','Pink & spring'],['Lantern Festival','Glow & release'],
+    ['Viking Longship','Oars & raids'],['Samurai Duel','Sword & honour'],
+    ['Aztec Temple','Stone & sacrifice'],['Greek Amphitheatre','Columns & drama'],
+    ['Persian Bazaar','Spice & carpet'],['Ottoman Palace','Grand & domed'],
+    ['Mughal Garden','Symmetry & fountain'],['Nomadic Camp','Tent & travel'],
+    ['Tribal Council','Chief & decision'],['Totem Pole','Carved & tall'],
+    ['Cave Painting','Ancient & ochre'],['Hieroglyphics','Symbols & Egypt'],
+    ['Ancient Library','Scrolls & wisdom'],['Medieval Jousting','Lance & horse'],
+    ['Gladiator Fight','Arena & combat'],['Chariot Race','Horse & wheel'],
+    ['Battle of Waterloo','Napoleon\'s defeat'],
+  ],
+};
+WDB.all = Object.values(WDB).flat();
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const S={
+  myName:'',isHost:false,roomKey:'',roomCode:'',
+  phase:'join',word:'',category:'all',role:'',
+  impostors:{},players:{},skipVotes:{},myVote:null,
+  roundNum:1,impMode:'fixed',impCount:1,impMin:1,impMax:3,
+  selectedCat:'all',
+};
+
+let gun=null, room=null;
+let _revealTimer=null;
+
+// ═══════════════════════════════════════════
+// GUN
+// ═══════════════════════════════════════════
+function initGun(){
+  try{
+    gun=Gun({peers:['https://gun-relay.fly.dev/gun','https://peer.wallie.io/gun'],localStorage:false});
+    setTimeout(()=>setConn(true),1800);
+  }catch(e){setConn(false);}
+}
+function setConn(ok){
+  const b=document.getElementById('conn-bar');
+  if(!b)return;
+  b.className='cbar '+(ok?'ok':'err');
+  b.textContent=ok?'● Connected — share the room password with your friends':'● Connection issue — check internet';
+}
+
+// ═══════════════════════════════════════════
+// HASH / ROOM
+// ═══════════════════════════════════════════
+function hashStr(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h)^s.charCodeAt(i);return Math.abs(h).toString(36).padStart(8,'0').slice(0,8);}
+function roomKey(p){return 'impv3_'+hashStr(p.toLowerCase().trim()+'_'+Math.floor(Date.now()/(36e5*12)));}
+function roomCode(k){return k.slice(-4).toUpperCase();}
+
+// ═══════════════════════════════════════════
+// JOIN
+// ═══════════════════════════════════════════
+function doJoin(){
+  const name=document.getElementById('join-name').value.trim();
+  const pass=document.getElementById('join-pass').value.trim();
+  if(!name){toast('Enter your name');return;}
+  if(!pass){toast('Enter room password');return;}
+  S.myName=name; S.roomKey=roomKey(pass); S.roomCode=roomCode(S.roomKey);
+  sessionStorage.setItem('n',name); sessionStorage.setItem('p',pass);
+  showLoading();
+  if(!gun) initGun();
+  room=gun.get(S.roomKey);
+  let done=false;
+  room.get('phase').once(ph=>{
+    if(done)return; done=true; hideLoading();
+    if(!ph||ph===null){S.isHost=true;room.get('phase').put('lobby');room.get('host').put(name);room.get('roundNum').put(1);}
+    regPlayer(); listenRoom(); goTo('lobby');
+  });
+  setTimeout(()=>{if(!done){done=true;hideLoading();S.isHost=true;room.get('phase').put('lobby');room.get('host').put(name);room.get('roundNum').put(1);regPlayer();listenRoom();goTo('lobby');}},5000);
+}
+
+function regPlayer(){
+  room.get('players').get(S.myName).put({name:S.myName,points:0,online:Date.now()});
+  setInterval(()=>{if(room)room.get('players').get(S.myName).get('online').put(Date.now());},8000);
+}
+
+function leaveGame(){
+  if(room)room.get('players').get(S.myName).get('online').put(0);
+  if(_revealTimer){clearInterval(_revealTimer);_revealTimer=null;}
+  room=null; sessionStorage.clear();
+  Object.assign(S,{myName:'',isHost:false,roomKey:'',roomCode:'',phase:'join',word:'',role:'',impostors:{},players:{},skipVotes:{},myVote:null,roundNum:1});
+  goTo('join');
+}
+
+// ═══════════════════════════════════════════
+// LISTENERS
+// ═══════════════════════════════════════════
+function listenRoom(){
+  room.get('phase').on(p=>{if(!p||p===S.phase)return; S.phase=p; handlePhase(p);});
+  room.get('word').on(w=>{if(w){S.word=w; txt('disc-word-val',w);}});
+  room.get('roundNum').on(n=>{if(n)S.roundNum=n;});
+  room.get('category').on(c=>{if(c){S.category=c; txt('disc-cat-crew',catLabel(c)); txt('disc-cat-imp',catLabel(c));}});
+  room.get('players').map().on((d,name)=>{
+    if(!name||name==='_')return;
+    if(d===null){delete S.players[name];}
+    else{S.players[name]=Object.assign(S.players[name]||{},d,{name});}
+    renderLobbyPlayers(); renderDiscPlayers(); updateVoteProgress();
+  });
+  room.get('roles').get(S.myName).on(r=>{if(r)S.role=r;});
+  room.get('impostors').map().on((v,name)=>{
+    if(!name||name==='_')return;
+    if(v===true)S.impostors[name]=true; else delete S.impostors[name];
+    if(name===S.myName)S.role=v?'impostor':'crewmate';
+  });
+  room.get('hints').get(S.myName).on(h=>{
+    if(h){txt('disc-hint-val',h);}
+  });
+  room.get('skipVotes').map().on((v,name)=>{
+    if(!name||name==='_')return;
+    if(v)S.skipVotes[name]=true; else delete S.skipVotes[name];
+    updateSkipBar();
+    const tot=Object.keys(S.players).length,sk=Object.keys(S.skipVotes).length;
+    if(tot>0&&sk>tot/2&&S.isHost&&S.phase==='discussion')doSkipWord();
+  });
+  room.get('votes').map().on((v,name)=>{
+    if(!name||name==='_')return;
+    if(!S.players[name])S.players[name]={name};
+    S.players[name].vote=v;
+    updateVoteProgress();
+    if(S.isHost)checkAllVoted();
+  });
+  room.get('revealed').map().on((v,name)=>{
+    if(!name||name==='_')return;
+    if(!S.players[name])S.players[name]={name};
+    S.players[name].revealed=v;
+    updateRevealProgress();
+    if(S.isHost)checkAllRevealed();
+  });
+}
+
+// ═══════════════════════════════════════════
+// PHASE
+// ═══════════════════════════════════════════
+function handlePhase(p){
+  if(_revealTimer){clearInterval(_revealTimer);_revealTimer=null;}
+  switch(p){
+    case 'lobby': goTo('lobby'); renderLobbyPlayers(); break;
+    case 'reveal':
+      goTo('reveal'); txt('reveal-round','Round '+S.roundNum);
+      // Reset reveal UI
+      vis('card-hidden','block'); hide('card-shown'); hide('reveal-waiting');
+      vis('host-force-btn', S.isHost?'block':'none');
+      // Host polls every 3s as fallback
+      if(S.isHost){
+        _revealTimer=setInterval(()=>{
+          if(S.phase==='reveal') checkAllRevealed();
+          else{clearInterval(_revealTimer);_revealTimer=null;}
+        },3000);
+      }
+      break;
+    case 'discussion':
+      goTo('discussion'); txt('disc-round','Round '+S.roundNum);
+      renderDiscussion(); break;
+    case 'voting':
+      S.myVote=null; goTo('voting'); txt('vote-round','Round '+S.roundNum);
+      renderVoting(); break;
+    case 'results':
+      goTo('results'); txt('res-round','Round '+S.roundNum);
+      setTimeout(renderResults,500); break;
+  }
+}
+
+// ═══════════════════════════════════════════
+// LOBBY
+// ═══════════════════════════════════════════
+function renderLobbyPlayers(){
+  const el=document.getElementById('lobby-players'); if(!el)return;
+  const ps=Object.values(S.players);
+  txt('lobby-code','Room '+S.roomCode);
+  txt('lobby-status',ps.length+' player'+(ps.length!==1?'s':'')+' in lobby');
+  let hostName=''; if(room)room.get('host').once(v=>{hostName=v||'';});
+  el.innerHTML=ps.map(p=>`
+    <div class="prow">
+      <div class="pav">${av(p.name)}</div>
+      <div class="pname">${esc(p.name||'')}</div>
+      ${p.name===hostName?'<div class="ptag host">HOST</div>':''}
+      ${p.name===S.myName?'<div class="ptag you">YOU</div>':''}
+    </div>`).join('');
+  document.getElementById('host-settings').style.display=S.isHost?'block':'none';
+  const sb=document.getElementById('start-btn'), sh=document.getElementById('start-hint');
+  if(S.isHost){sb.style.display='block';const can=ps.length>=3;sb.disabled=!can;sh.textContent=can?'All set — tap to start!':'Need at least 3 players';}
+  else{sb.style.display='none';sh.textContent='Waiting for host to start…';}
+}
+function setCat(btn){document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');S.selectedCat=btn.dataset.cat;}
+function setImpMode(m){
+  S.impMode=m;
+  document.getElementById('imp-fixed-btn').classList.toggle('active',m==='fixed');
+  document.getElementById('imp-rand-btn').classList.toggle('active',m==='random');
+  document.getElementById('imp-fixed-row').style.display=m==='fixed'?'flex':'none';
+  document.getElementById('imp-rand-rows').style.display=m==='random'?'block':'none';
+}
+function adj(key,d){
+  const ps=Math.max(3,Object.keys(S.players).length);
+  if(key==='impCount')S.impCount=clamp(S.impCount+d,1,ps-1);
+  else if(key==='impMin')S.impMin=clamp(S.impMin+d,1,S.impMax);
+  else if(key==='impMax')S.impMax=clamp(S.impMax+d,S.impMin,ps-1);
+  txt('imp-count-val',S.impCount); txt('imp-min-val',S.impMin); txt('imp-max-val',S.impMax);
+}
+
+// ═══════════════════════════════════════════
+// START GAME
+// ═══════════════════════════════════════════
+function startGame(){
+  if(!S.isHost)return;
+  const pnames=Object.keys(S.players);
+  if(pnames.length<3){toast('Need 3+ players');return;}
+  const pool=S.selectedCat==='all'?WDB.all:(WDB[S.selectedCat]||WDB.all);
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  S.word=pick[0]; const hint=pick[1];
+  let cnt=S.impMode==='random'?S.impMin+Math.floor(Math.random()*(S.impMax-S.impMin+1)):S.impCount;
+  cnt=clamp(cnt,1,pnames.length-1);
+  const shuffled=[...pnames].sort(()=>Math.random()-.5);
+  const imps=shuffled.slice(0,cnt);
+  ['impostors','roles','revealed','votes','skipVotes','hints','roundPts'].forEach(k=>room.get(k).put(null));
+  setTimeout(()=>{
+    room.get('word').put(S.word);
+    room.get('category').put(S.selectedCat);
+    room.get('roundNum').put(S.roundNum);
+    imps.forEach(n=>{room.get('impostors').get(n).put(true);room.get('roles').get(n).put('impostor');room.get('hints').get(n).put(hint);});
+    pnames.forEach(n=>{if(!imps.includes(n))room.get('roles').get(n).put('crewmate');});
+    S.impostors={}; imps.forEach(n=>S.impostors[n]=true);
+    S.role=imps.includes(S.myName)?'impostor':'crewmate';
+    setTimeout(()=>room.get('phase').put('reveal'),600);
+  },400);
+}
+
+// ═══════════════════════════════════════════
+// REVEAL  (FIX: no hang)
+// ═══════════════════════════════════════════
+function showCard(){
+  hide('card-hidden'); vis('card-shown','block');
+  const face=document.getElementById('role-face');
+  const cat=catLabel(S.category);
+  if(S.role==='impostor'){
+    let hint='Loading…';
+    room.get('hints').get(S.myName).once(h=>{if(h)hint=h; buildImpostorFace(face,hint,cat);});
+    buildImpostorFace(face,hint,cat);
+  } else {
+    face.innerHTML=`
+      <div class="role-icon">👤</div>
+      <div class="role-badge">You Are</div>
+      <div class="role-type crew">CREWMATE</div>
+      <div class="role-divider"></div>
+      <div class="info-box">
+        <div class="info-label">Your Word</div>
+        <div class="info-val word">${esc(S.word)}</div>
+      </div>
+      <div class="info-box">
+        <div class="info-label">Category</div>
+        <div class="info-val cat">${esc(cat)}</div>
+      </div>`;
+  }
+}
+
+function buildImpostorFace(face,hint,cat){
+  face.style.background='#0d0505';
+  face.innerHTML=`
+    <div class="role-icon">😈</div>
+    <div class="role-badge">You Are</div>
+    <div class="role-type imp">IMPOSTOR</div>
+    <div class="role-divider"></div>
+    <div class="info-box" style="background:#1a0505">
+      <div class="info-label">Your Hint</div>
+      <div class="info-val hint">${esc(hint)}</div>
+    </div>
+    <div class="info-box" style="background:#1a0505">
+      <div class="info-label">Category</div>
+      <div class="info-val cat">${esc(cat)}</div>
+    </div>`;
+}
+
+function markReady(){
+  const btn=document.getElementById('ready-btn');
+  btn.disabled=true; btn.textContent='Waiting for others…';
+  // Update local state FIRST (fixes the hang — no waiting for Gun.js sync)
+  if(!S.players[S.myName])S.players[S.myName]={name:S.myName};
+  S.players[S.myName].revealed=true;
+  // Then write to Gun
+  room.get('revealed').get(S.myName).put(true);
+  // Show waiting UI
+  hide('card-shown'); vis('reveal-waiting','block');
+  updateRevealProgress();
+  // Check immediately (works even offline)
+  if(S.isHost)checkAllRevealed();
+}
+
+function updateRevealProgress(){
+  const tot=Object.keys(S.players).length;
+  const rdy=Object.values(S.players).filter(p=>p.revealed).length;
+  txt('reveal-progress',rdy+' / '+tot);
+}
+
+function checkAllRevealed(){
+  if(!S.isHost)return;
+  const tot=Object.keys(S.players).length;
+  const rdy=Object.values(S.players).filter(p=>p.revealed).length;
+  if(tot>0&&rdy>=tot){
+    if(_revealTimer){clearInterval(_revealTimer);_revealTimer=null;}
+    room.get('phase').put('discussion');
+  }
+}
+
+function forceDiscussion(){if(S.isHost)room.get('phase').put('discussion');}
+
+// ═══════════════════════════════════════════
+// DISCUSSION
+// ═══════════════════════════════════════════
+function renderDiscussion(){
+  const imp=S.role==='impostor';
+  vis('disc-crew',imp?'none':'block'); vis('disc-imp',imp?'block':'none');
+  txt('disc-word-val',S.word); txt('disc-cat-crew',catLabel(S.category)); txt('disc-cat-imp',catLabel(S.category));
+  if(imp)room.get('hints').get(S.myName).once(h=>{if(h)txt('disc-hint-val',h);});
+  S.skipVotes={}; updateSkipBar();
+  vis('disc-host-ctrl',S.isHost?'block':'none');
+  vis('disc-wait',S.isHost?'none':'block');
+  renderDiscPlayers();
+}
+function renderDiscPlayers(){
+  const el=document.getElementById('disc-players'); if(!el||S.phase!=='discussion')return;
+  el.innerHTML=Object.values(S.players).map(p=>`
+    <div class="prow">
+      <div class="pav">${av(p.name)}</div>
+      <div class="pname">${esc(p.name||'')}</div>
+      ${p.name===S.myName?'<div class="ptag you">YOU</div>':''}
+      <div class="ppts ${ptsCls(p.points||0)}">${p.points||0}</div>
+    </div>`).join('');
+}
+function updateSkipBar(){
+  const tot=Object.keys(S.players).length,sk=Object.keys(S.skipVotes).length;
+  txt('skip-cnt',sk+'/'+tot);
+  const btn=document.getElementById('skip-btn');
+  if(btn)btn.className='btn-skip'+(S.skipVotes[S.myName]?' voted':'');
+}
+function voteSkip(){
+  if(S.skipVotes[S.myName])room.get('skipVotes').get(S.myName).put(null);
+  else room.get('skipVotes').get(S.myName).put(true);
+}
+function doSkipWord(){
+  if(!S.isHost)return;
+  const pool=S.category==='all'?WDB.all:(WDB[S.category]||WDB.all);
+  let pick,tries=0; do{pick=pool[Math.floor(Math.random()*pool.length)];tries++;}while(pick[0]===S.word&&tries<10);
+  S.word=pick[0]; const hint=pick[1];
+  room.get('word').put(S.word);
+  room.get('hints').put(null);
+  setTimeout(()=>{Object.keys(S.impostors).forEach(n=>room.get('hints').get(n).put(hint));},300);
+  room.get('skipVotes').put(null);
+  toast('Word skipped!');
+}
+function startVoting(){if(S.isHost)room.get('phase').put('voting');}
+
+// ═══════════════════════════════════════════
+// VOTING  (cleaner UX)
+// ═══════════════════════════════════════════
+let _selVote=null;
+
+function renderVoting(){
+  _selVote=null;
+  const imp=S.role==='impostor';
+  // Hide all panels first
+  hide('vote-crew'); hide('vote-submitted'); hide('vote-imp');
+  hide('vote-chosen-banner');
+  vis('vote-host-btn',S.isHost?'block':'none');
+
+  if(imp){
+    vis('vote-imp','block');
+  } else {
+    vis('vote-crew','block');
+    vis('vote-select-hint','block');
+    // Build player list as <button> elements for reliable iOS tapping
+    const ps=Object.values(S.players).filter(p=>p.name!==S.myName);
+    const vl=document.getElementById('vote-list');
+    if(vl){
+      vl.innerHTML='';
+      ps.forEach(p=>{
+        const btn=document.createElement('button');
+        btn.className='vbtn';
+        btn.id='vi-'+eid(p.name);
+        btn.type='button';
+        btn.innerHTML=`<div class="vcheck">✓</div><div class="pav" style="width:42px;height:42px;font-size:17px">${av(p.name)}</div><div class="vname">${esc(p.name||'')}</div>`;
+        btn.addEventListener('click',function(){selVote(p.name);});
+        btn.addEventListener('touchend',function(e){e.preventDefault();selVote(p.name);});
+        vl.appendChild(btn);
+      });
+    }
+  }
+  updateVoteProgress();
+}
+
+function selVote(name){
+  if(S.myVote)return;
+  _selVote=name;
+  document.querySelectorAll('.vbtn').forEach(e=>e.classList.remove('sel'));
+  const el=document.getElementById('vi-'+eid(name)); if(el)el.classList.add('sel');
+  txt('vote-chosen-name',name);
+  vis('vote-chosen-banner','block');
+  hide('vote-select-hint');
+}
+
+function clearVoteSelection(){
+  _selVote=null;
+  document.querySelectorAll('.vbtn').forEach(e=>e.classList.remove('sel'));
+  hide('vote-chosen-banner');
+  vis('vote-select-hint','block');
+}
+
+function submitVote(){
+  if(!_selVote||S.myVote)return;
+  S.myVote=_selVote;
+  room.get('votes').get(S.myName).put(_selVote);
+  vis('vote-crew','none');
+  vis('vote-submitted','block');
+  txt('vote-submitted-name',_selVote);
+  // Local update + check
+  if(!S.players[S.myName])S.players[S.myName]={name:S.myName};
+  S.players[S.myName].vote=_selVote;
+  updateVoteProgress();
+  if(S.isHost)checkAllVoted();
+}
+
+function updateVoteProgress(){
+  if(S.phase!=='voting')return;
+  const nonImps=Object.values(S.players).filter(p=>!S.impostors[p.name]);
+  const voted=nonImps.filter(p=>p.vote);
+  const t=voted.length+' of '+nonImps.length+' voted';
+  txt('vote-prog',t); txt('vote-prog2',t);
+}
+
+function checkAllVoted(){
+  if(!S.isHost)return;
+  const nonImps=Object.values(S.players).filter(p=>!S.impostors[p.name]);
+  if(nonImps.length>0&&nonImps.filter(p=>p.vote).length>=nonImps.length)
+    setTimeout(()=>{calcPoints();room.get('phase').put('results');},800);
+}
+function forceResults(){if(S.isHost){calcPoints();room.get('phase').put('results');}}
+
+// ═══════════════════════════════════════════
+// POINTS
+// ═══════════════════════════════════════════
+function calcPoints(){
+  if(!S.isHost)return;
+  const players=Object.values(S.players);
+  const imps=Object.keys(S.impostors);
+  const nonImps=players.filter(p=>!imps.includes(p.name));
+  const rpts={};
+  players.forEach(p=>rpts[p.name]=0);
+  nonImps.forEach(p=>{if(p.vote&&imps.includes(p.vote))rpts[p.name]=1;else if(p.vote)rpts[p.name]=-1;});
+  imps.forEach(imp=>{rpts[imp]=nonImps.length-nonImps.filter(p=>p.vote===imp).length;});
+  players.forEach(p=>{
+    const nt=(p.points||0)+(rpts[p.name]||0);
+    room.get('players').get(p.name).get('points').put(nt);
+    room.get('roundPts').get(p.name).put(rpts[p.name]||0);
+    S.players[p.name].points=nt;
+  });
+}
+
+// ═══════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════
+function renderResults(){
+  const players=Object.values(S.players);
+  const imps=Object.keys(S.impostors);
+  const nonImps=players.filter(p=>!imps.includes(p.name));
+  txt('res-word',S.word);
+  room.get('roundPts').get(S.myName).once(pts=>{
+    const v=pts||0;
+    const pEl=document.getElementById('my-pts');
+    if(pEl){pEl.textContent=(v>0?'+':'')+v; pEl.className='pts-val '+ptsCls(v);}
+    let desc='';
+    if(S.role==='impostor'){
+      const dc=nonImps.filter(p=>p.vote===S.myName).length;
+      desc=dc===0?'Nobody caught you! Full points 🎉':dc+' player'+(dc>1?'s':'')+' caught you';
+    } else {
+      const mv=S.players[S.myName]?.vote;
+      desc=!mv?'You did not vote':imps.includes(mv)?'Correct! You found an impostor ✓':'Wrong guess − 1 point ✗';
+    }
+    txt('my-pts-desc',desc);
+  });
+  document.getElementById('res-imps').innerHTML=imps.map(n=>`
+    <div class="rrow"><div class="pav">${av(n)}</div><div class="pname" style="flex:1">${esc(n)}</div><div class="rbadge imp">IMPOSTOR</div></div>`).join('');
+  document.getElementById('res-votes').innerHTML=nonImps.map(p=>{
+    const v=p.vote||null, cor=v&&imps.includes(v);
+    return `<div class="rrow">
+      <div class="pav">${av(p.name)}</div>
+      <div class="pname" style="flex:1">${esc(p.name||'')}</div>
+      <div style="font-size:13px;color:var(--text3);margin-right:8px">→ ${esc(v||'–')}</div>
+      <div class="rbadge ${!v?'none':cor?'ok':'bad'}">${!v?'–':cor?'+1':'−1'}</div>
+    </div>`;}).join('');
+  const sorted=[...players].sort((a,b)=>(b.points||0)-(a.points||0));
+  document.getElementById('res-board').innerHTML=sorted.map((p,i)=>`
+    <div class="prow">
+      <div style="font-size:16px;font-weight:800;width:24px;color:var(--text3)">${i+1}</div>
+      <div class="pav">${av(p.name)}</div>
+      <div class="pname">${esc(p.name||'')}</div>
+      ${p.name===S.myName?'<div class="ptag you">YOU</div>':''}
+      <div class="ppts ${ptsCls(p.points||0)}">${p.points||0}</div>
+    </div>`).join('');
+  vis('res-host-btns',S.isHost?'block':'none');
+  vis('res-wait',S.isHost?'none':'block');
+}
+function nextRound(){if(!S.isHost)return;S.roundNum++;room.get('roundNum').put(S.roundNum);room.get('phase').put('lobby');}
+function resetPoints(){if(!S.isHost)return;Object.keys(S.players).forEach(n=>room.get('players').get(n).get('points').put(0));S.roundNum=1;room.get('roundNum').put(1);room.get('phase').put('lobby');}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function goTo(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));const el=document.getElementById('screen-'+id);if(el)el.classList.add('active');}
+function showLoading(){document.getElementById('loading').classList.remove('hidden');}
+function hideLoading(){document.getElementById('loading').classList.add('hidden');}
+let _tt=null;
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),2800);}
+function txt(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function vis(id,d){const e=document.getElementById(id);if(e)e.style.display=d;}
+function hide(id){vis(id,'none');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function eid(s){return String(s).replace(/[^a-zA-Z0-9]/g,'_');}
+function av(n){return (String(n||'?')[0]||'?').toUpperCase();}
+function ptsCls(n){return n>0?'pos':n<0?'neg':'zer';}
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v));}
+function catLabel(c){return{all:'All Categories',bangladeshi:'🇧🇩 Bangladeshi',places:'Places',food:'Food & Drinks',objects:'Daily Objects',nature:'Nature & Animals',sports:'Sports',professions:'Professions',tech:'Technology',entertainment:'Entertainment',history:'History & Culture'}[c]||c;}
+
+window.addEventListener('load',()=>{
+  hideLoading(); goTo('join'); initGun();
+  const n=sessionStorage.getItem('n'),p=sessionStorage.getItem('p');
+  if(n)document.getElementById('join-name').value=n;
+  if(p)document.getElementById('join-pass').value=p;
+});
+</script>
+</body>
+</html>
